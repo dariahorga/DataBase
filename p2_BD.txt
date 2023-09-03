@@ -1,0 +1,103 @@
+EX14
+
+CREATE VIEW detalii_comanda_view AS
+SELECT c.comanda_id, cl.nume AS nume_client, p.nume AS nume_produs, dc.cantitate, dc.pret
+FROM detalii_comanda dc
+JOIN comanda c ON dc.comanda_id = c.comanda_id
+JOIN clienti cl ON c.client_id = cl.client_id
+JOIN produs p ON dc.produs_id = p.produs_id;
+
+
+--Operație LMD permisă (exemplu de ștergere):
+DELETE FROM detalii_comanda_view WHERE comanda_id = 2;
+--Operație LMD nepermisă (exemplu de inserare):
+--Vizualizarea complexă este bazată pe mai multe tabele și nu poate fi modificată direct. Pentru a actualiza datele, trebuie să modificăm tabelele de bază corespunzătoare.
+INSERT INTO detalii_comanda_view (comanda_id, nume_client, nume_produs, cantitate, pret) VALUES (3, 'John Doe', 'Bluza', 2, 50);
+
+EX15
+
+--Afiseaza informațiile despre clienți și comenzile lor, indiferent dacă au plasat sau nu comenzi, împreună cu produsele asociate comenzilor
+--outer join
+SELECT *
+FROM clienti
+LEFT OUTER JOIN comanda ON clienti.id_client = comanda.id_client
+LEFT OUTER JOIN detalii_comanda ON detalii_comanda.id_comanda = comanda.id_comanda;
+
+--Afiseaza clientii care nu au plasat nicio comandă dupa data de 1 ianuarie 2023.
+--division
+SELECT c.client_id
+FROM clienti c
+WHERE NOT EXISTS (
+    SELECT *
+    FROM Comanda co
+    WHERE co.client_id = c.client_id
+      AND co.data_comenzii > '2023-01-01'
+);
+
+
+--Afiseaza cele mai mari 5 comenzi în funcție de pret
+SELECT TOP 5 *
+FROM detalii_comanda
+ORDER BY pret DESC;
+
+EX16
+
+--optimizare
+
+WITH ComenziMartie AS (
+  SELECT com.client_id
+  FROM Comanda com
+  JOIN Plata p ON com.comanda_id = p.comanda_id
+  WHERE com.data_comanda >= '2023-03-01' AND com.data_comanda < '2023-04-01'
+    AND UPPER(com.statusul_comenzii) = 'IN PROCESARE'
+    AND EXISTS (
+      SELECT 1
+      FROM Card c
+      WHERE c.plata_id = p.plata_id
+    )
+)
+SELECT c.nume, c.adresa_de_livrare, c.numar_telefon
+FROM Clienti c
+WHERE c.client_id IN (SELECT client_id FROM ComenziMartie);
+
+EX17
+
+Pentru a realiza normalizarea în formă normală Boyce-Codd (BCNF), trebuie să identificăm dependențele funcționale din schema și să asigurăm că nu există dependențe parțiale sau tranzitive în tabele. Normalizarea BCNF se bazează pe eliminarea dependențelor funcționale nedorite.
+În exemplul dat, vom analiza tabela "produs" și vom aplica normalizarea BCNF.
+Schema inițială:
+produs (produs_id, furnizor_id, categorie_id, nume, pret, descriere)
+Dependențele funcționale identificate:
+produs_id -> nume, pret, descriere (Un produs este determinat unic de produs_id)
+furnizor_id -> furnizor_nume, furnizor_adresa, furnizor_detalii_contact (Un furnizor este determinat unic de furnizor_id)
+categorie_id -> categorie_nume (O categorie de produs este determinată unic de categorie_id)
+Pasul 1: Separarea în tabele distincte pentru a elimina dependențele parțiale sau tranzitive.
+tabel_categorie (categorie_id, categorie_nume)
+tabel_furnizor (furnizor_id, furnizor_nume, furnizor_adresa, furnizor_detalii_contact)
+tabel_produs (produs_id, furnizor_id, categorie_id, nume, pret, descriere)
+Pasul 2: Eliminarea dependențelor funcționale nedorite prin crearea de chei primare și chei externe.
+tabel_categorie (categorie_id [PK], categorie_nume)
+tabel_furnizor (furnizor_id [PK], furnizor_nume, furnizor_adresa, furnizor_detalii_contact)
+tabel_produs (produs_id [PK], furnizor_id [FK], categorie_id [FK], nume, pret, descriere)
+Astfel, am obținut o structură normalizată în BCNF, unde fiecare tabel are o cheie primară unică și depinde de entitățile corespunzătoare prin chei externe.
+
+Normalizarea FN4 se referă la o formă de normalizare a bazelor de date care se concentrează pe eliminarea dependențelor funcționale parțiale. Aceasta implică împărțirea tabelelor în tabele separate pentru a evita dependențele funcționale care nu sunt pe deplin dependente de cheia primară.
+Pentru a exemplifica normalizarea FN4, să luăm în considerare un tabel "comanda" cu următoarele atribute: comanda_id, produs_id, client_id și cantitate. Presupunem că există o dependență funcțională în tabelul nostru, și anume: comanda_id determină produs_id, client_id și cantitate.
+Pentru a normaliza tabela în conformitate cu FN4, vom împărți tabela inițială în două tabele separate:
+Tabelul 1: comanda
+Atribute: comanda_id, produs_id
+Tabelul 2: comanda_detalii
+Atribute: comanda_id, client_id, cantitate
+
+Prin această normalizare, am eliminat dependența funcțională parțială, deoarece am separat atributele care nu sunt dependente de cheia primară într-un tabel separat (tabelul 2 - comanda_detalii). Tabelul 1 (comanda) conține doar atributele care sunt dependente de cheia primară (comanda_id și produs_id).
+
+Normalizarea FN5 se referă la o formă avansată de normalizare a bazelor de date care se concentrează pe eliminarea dependențelor multivaluate.
+Pentru a exemplifica normalizarea FN5, să luăm în considerare un tabel "comanda" cu următoarele atribute: comanda_id, produs_id, client_id, data_comanda și cantitate. Vom analiza dependențele funcționale și vom normaliza tabelul în conformitate cu FN5.
+Dependența funcțională prezentă în tabel este: comanda_id determină produs_id, client_id, data_comanda și cantitate.
+În cazul normalizării FN5, dorim să eliminăm dependențele multivaluate, adică dependențele care se bazează pe submulțimile de valori ale cheii candidat. În acest caz, cheia candidat este {comanda_id}.
+Pentru a normaliza tabela în FN5, vom împărți tabela inițială în două tabele separate:
+Tabelul 1: comanda
+Atribute: comanda_id, produs_id, client_id
+Tabelul 2: comanda_detalii
+Atribute: comanda_id, data_comanda, cantitate
+Astfel, am eliminat dependența multivaluată, deoarece am separat atributele care depind exclusiv de cheia candidat într-un tabel separat (tabelul 2 - comanda_detalii). Tabelul 1 (comanda) conține doar atributele care sunt dependente de cheia candidat.
+
